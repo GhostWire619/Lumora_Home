@@ -37,7 +37,10 @@ function useWebGLSupport() {
 }
 
 // Dynamically import Three.js components
-const ThreeCanvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), { ssr: false })
+const ThreeCanvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), {
+  ssr: false,
+  loading: () => <HeroFallback isLoading={true} />,
+})
 
 function FloatingCube({ position }: { position: [number, number, number] }) {
   const meshRef = useRef<THREE.Mesh>(null!)
@@ -73,17 +76,79 @@ function Scene() {
   )
 }
 
+function HeroFallback({ isLoading = false }: { isLoading?: boolean }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Cool background with subtle animation */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-black/40 to-purple-900/20"></div>
+
+        {/* Animated particles */}
+        <div className="absolute inset-0 overflow-hidden">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 rounded-full bg-blue-400/30"
+              style={{
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                animation: `float ${5 + Math.random() * 10}s linear infinite`,
+                animationDelay: `${Math.random() * 5}s`,
+                opacity: 0.3 + Math.random() * 0.7,
+              }}
+            ></div>
+          ))}
+        </div>
+
+        {/* Animated gradient overlay */}
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-blue-900/10 to-purple-900/10 animate-pulse"
+          style={{ animationDuration: "4s" }}
+        ></div>
+      </div>
+
+      {/* Loading indicator (only shown when loading) */}
+      {isLoading && (
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 backdrop-blur-md border border-white/10">
+            <div className="text-sm text-blue-200">Initializing</div>
+            <div className="flex gap-1">
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              ></span>
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              ></span>
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              ></span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Hero3D() {
   const { isSupported, isClient } = useWebGLSupport()
 
   // Don't render anything until we're on the client
-  if (!isClient || !isSupported) {
-    return null
+  if (!isClient) {
+    return <HeroFallback />
+  }
+
+  // If WebGL is not supported, show fallback
+  if (!isSupported) {
+    return <HeroFallback />
   }
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <Suspense fallback={null}>
+      <Suspense fallback={<HeroFallback isLoading={true} />}>
         <ThreeCanvas
           camera={{ position: [0, 0, 8], fov: 75 }}
           onCreated={({ gl }) => {
