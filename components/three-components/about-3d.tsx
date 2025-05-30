@@ -1,76 +1,63 @@
-"use client";
+"use client"
 
-import { useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import {
-  Float,
-  Environment,
-  MeshDistortMaterial,
-  Sphere,
-} from "@react-three/drei";
-import type * as THREE from "three";
+import { Suspense } from "react"
+import dynamic from "next/dynamic"
 
-// Create a simpler 3D component that doesn't rely on custom fonts
-function AnimatedLumoraContent() {
-  const sphereRef = useRef<THREE.Mesh>(null);
+// Dynamically import Three.js components to prevent SSR issues
+const Canvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), { ssr: false })
+const Text3D = dynamic(() => import("@react-three/drei").then((mod) => ({ default: mod.Text3D })), { ssr: false })
+const OrbitControls = dynamic(() => import("@react-three/drei").then((mod) => ({ default: mod.OrbitControls })), {
+  ssr: false,
+})
 
-  useFrame((state) => {
-    if (sphereRef.current) {
-      sphereRef.current.rotation.y += 0.01;
-      sphereRef.current.position.y =
-        Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
-    }
-  });
-
+function LumoraText() {
   return (
-    <group>
-      {/* Main animated sphere */}
-      <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.8}>
-        <Sphere ref={sphereRef} args={[1.2, 64, 64]} position={[0, 0, 0]}>
-          <MeshDistortMaterial
-            color="#3B82F6"
-            attach="material"
-            distort={0.4}
-            speed={1.5}
-            roughness={0.2}
-            metalness={0.8}
-          />
-        </Sphere>
-      </Float>
-
-      {/* Glowing orbs */}
-      <Float speed={3} rotationIntensity={0.5} floatIntensity={1}>
-        <mesh position={[2, 1, 0]}>
-          <sphereGeometry args={[0.15, 16, 16]} />
-          <meshBasicMaterial color="#475569" />
-        </mesh>
-      </Float>
-
-      <Float speed={2.5} rotationIntensity={0.4} floatIntensity={0.7}>
-        <mesh position={[-2, -0.5, 1]}>
-          <sphereGeometry args={[0.12, 16, 16]} />
-          <meshBasicMaterial color="#6366F1" />
-        </mesh>
-      </Float>
-
-      <Float speed={4} rotationIntensity={0.6} floatIntensity={1.2}>
-        <mesh position={[1.5, -1.5, -1]}>
-          <sphereGeometry args={[0.18, 16, 16]} />
-          <meshBasicMaterial color="#8B5CF6" />
-        </mesh>
-      </Float>
-    </group>
-  );
+    <Text3D
+      font="/fonts/Geist_Bold.json"
+      size={0.8}
+      height={0.2}
+      curveSegments={12}
+      bevelEnabled
+      bevelThickness={0.02}
+      bevelSize={0.02}
+      bevelOffset={0}
+      bevelSegments={5}
+      position={[-2, 0, 0]}
+      scale={[1.2, 1.2, 1.2]}
+    >
+      LUMORA
+      <meshStandardMaterial color="#3b82f6" metalness={0.3} roughness={0.4} />
+    </Text3D>
+  )
 }
 
-export default function AboutThreeD() {
+function Scene() {
   return (
-    <Canvas camera={{ position: [0, 0, 6] }}>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} color="#3B82F6" intensity={2} />
-      <pointLight position={[-10, -10, -10]} color="#8B5CF6" intensity={1.5} />
-      <AnimatedLumoraContent />
-      <Environment preset="city" />
-    </Canvas>
-  );
+    <>
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} />
+      <LumoraText />
+      <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={2} />
+    </>
+  )
+}
+
+export default function About3D() {
+  return (
+    <div className="w-full h-64 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900">
+      <Suspense
+        fallback={
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              LUMORA
+            </div>
+          </div>
+        }
+      >
+        <Canvas camera={{ position: [0, 0, 6], fov: 75 }}>
+          <Scene />
+        </Canvas>
+      </Suspense>
+    </div>
+  )
 }
