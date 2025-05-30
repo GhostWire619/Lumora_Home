@@ -1,12 +1,43 @@
 "use client"
 
-import { Suspense, useRef } from "react"
+import { Suspense, useRef, useEffect, useState } from "react"
 import { useFrame } from "@react-three/fiber"
 import dynamic from "next/dynamic"
 import type * as THREE from "three"
 
-// Dynamically import Three.js components to prevent SSR issues
-const Canvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), { ssr: false })
+// Check WebGL support
+function useWebGLSupport() {
+  const [isSupported, setIsSupported] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+
+    if (typeof window !== "undefined") {
+      try {
+        const canvas = document.createElement("canvas")
+        const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+        setIsSupported(!!gl)
+
+        // Clean up
+        if (gl) {
+          const loseContext = gl.getExtension("WEBGL_lose_context")
+          if (loseContext) {
+            loseContext.loseContext()
+          }
+        }
+        canvas.remove()
+      } catch (e) {
+        setIsSupported(false)
+      }
+    }
+  }, [])
+
+  return { isSupported, isClient }
+}
+
+// Dynamically import Three.js components
+const ThreeCanvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), { ssr: false })
 
 function FloatingCube({ position }: { position: [number, number, number] }) {
   const meshRef = useRef<THREE.Mesh>(null!)
@@ -43,12 +74,27 @@ function Scene() {
 }
 
 export default function Hero3D() {
+  const { isSupported, isClient } = useWebGLSupport()
+
+  // Don't render anything until we're on the client
+  if (!isClient || !isSupported) {
+    return null
+  }
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <Suspense fallback={null}>
-        <Canvas camera={{ position: [0, 0, 8], fov: 75 }}>
+        <ThreeCanvas
+          camera={{ position: [0, 0, 8], fov: 75 }}
+          onCreated={({ gl }) => {
+            // Handle context loss gracefully
+            gl.domElement.addEventListener("webglcontextlost", (event) => {
+              event.preventDefault()
+            })
+          }}
+        >
           <Scene />
-        </Canvas>
+        </ThreeCanvas>
       </Suspense>
     </div>
   )

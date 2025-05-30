@@ -1,11 +1,53 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 
-// Dynamically import Three.js components to prevent SSR issues
-const Canvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), { ssr: false })
+// Check if we're in the browser and WebGL is supported
+function useWebGLSupport() {
+  const [isSupported, setIsSupported] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+
+    if (typeof window !== "undefined") {
+      try {
+        const canvas = document.createElement("canvas")
+        const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+        setIsSupported(!!gl)
+
+        // Clean up
+        if (gl) {
+          const loseContext = gl.getExtension("WEBGL_lose_context")
+          if (loseContext) {
+            loseContext.loseContext()
+          }
+        }
+        canvas.remove()
+      } catch (e) {
+        setIsSupported(false)
+      }
+    }
+  }, [])
+
+  return { isSupported, isClient }
+}
+
+// Dynamically import Three.js components with error handling
+const ThreeCanvas = dynamic(() => import("@react-three/fiber").then((mod) => ({ default: mod.Canvas })), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent animate-pulse">
+        Loading LUMORA...
+      </div>
+    </div>
+  ),
+})
+
 const Text3D = dynamic(() => import("@react-three/drei").then((mod) => ({ default: mod.Text3D })), { ssr: false })
+
 const OrbitControls = dynamic(() => import("@react-three/drei").then((mod) => ({ default: mod.OrbitControls })), {
   ssr: false,
 })
@@ -42,21 +84,52 @@ function Scene() {
   )
 }
 
+function FallbackContent() {
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900">
+      <div className="text-center">
+        <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          LUMORA
+        </div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">Innovative Solutions</div>
+      </div>
+    </div>
+  )
+}
+
 export default function About3D() {
+  const { isSupported, isClient } = useWebGLSupport()
+
+  // Don't render anything until we're on the client
+  if (!isClient) {
+    return <FallbackContent />
+  }
+
+  // If WebGL is not supported, show fallback
+  if (!isSupported) {
+    return <FallbackContent />
+  }
+
   return (
     <div className="w-full h-64 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900">
-      <Suspense
-        fallback={
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LUMORA
-            </div>
-          </div>
-        }
-      >
-        <Canvas camera={{ position: [0, 0, 6], fov: 75 }}>
+      <Suspense fallback={<FallbackContent />}>
+        <ThreeCanvas
+          camera={{ position: [0, 0, 6], fov: 75 }}
+          onCreated={({ gl }) => {
+            // Handle context loss
+            gl.domElement.addEventListener("webglcontextlost", (event) => {
+              event.preventDefault()
+              console.log("WebGL context lost")
+            })
+
+            gl.domElement.addEventListener("webglcontextrestored", () => {
+              console.log("WebGL context restored")
+            })
+          }}
+          fallback={<FallbackContent />}
+        >
           <Scene />
-        </Canvas>
+        </ThreeCanvas>
       </Suspense>
     </div>
   )
