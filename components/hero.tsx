@@ -1,74 +1,67 @@
-"use client"
+"use client";
 
-import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Sphere, MeshDistortMaterial, Environment, Float } from "@react-three/drei"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Sparkles } from "lucide-react"
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Sparkles, Box } from "lucide-react";
 
-function AnimatedSphere() {
-  return (
-    <Float speed={1.5} rotationIntensity={0.3} floatIntensity={0.8}>
-      <Sphere visible args={[1, 100, 200]} scale={2.5}>
-        <MeshDistortMaterial
-          color="#3B82F6"
-          attach="material"
-          distort={0.6}
-          speed={1.8}
-          roughness={0.1}
-          metalness={0.9}
-        />
-      </Sphere>
-    </Float>
-  )
-}
+// Create a fallback component that doesn't use Three.js
+const ThreeDFallback = () => (
+  <div className="h-full w-full flex items-center justify-center bg-gradient-to-r from-blue-600/20 to-slate-600/20 rounded-lg">
+    <div className="text-center">
+      <Box className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-pulse" />
+      <h3 className="text-xl font-semibold text-blue-500">3D Experience</h3>
+      <p className="text-muted-foreground max-w-xs mx-auto mt-2">
+        Interactive 3D elements will appear here on compatible browsers
+      </p>
+    </div>
+  </div>
+);
 
-function SecondaryOrb() {
-  return (
-    <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-      <Sphere visible args={[0.5, 50, 100]} scale={1.2} position={[3, 1, -2]}>
-        <MeshDistortMaterial
-          color="#475569"
-          attach="material"
-          distort={0.4}
-          speed={2.2}
-          roughness={0.2}
-          metalness={0.7}
-        />
-      </Sphere>
-    </Float>
-  )
-}
+// Lazily load the 3D component only on client and with error boundaries
+const ThreeDContent = dynamic(
+  () =>
+    import("./three-components/hero-3d")
+      .then((mod) => mod.default)
+      .catch(() => ThreeDFallback),
+  {
+    ssr: false,
+    loading: () => <ThreeDFallback />,
+  }
+);
 
 export default function Hero() {
-  const smoothScrollTo = (elementId: string) => {
-    if (typeof window === "undefined") return
+  const [isMounted, setIsMounted] = useState(false);
 
-    const element = document.getElementById(elementId)
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  const smoothScrollTo = (elementId: string) => {
+    if (typeof window === "undefined") return;
+
+    const element = document.getElementById(elementId);
     if (element) {
-      const headerOffset = 80
-      const elementPosition = element.offsetTop
-      const offsetPosition = elementPosition - headerOffset
+      const headerOffset = 80;
+      const elementPosition = element.offsetTop;
+      const offsetPosition = elementPosition - headerOffset;
 
       window.scrollTo({
         top: offsetPosition,
         behavior: "smooth",
-      })
+      });
     }
-  }
+  };
 
   return (
-    <section id="home" className="relative h-screen flex items-center justify-center overflow-hidden bg-background">
+    <section
+      id="home"
+      className="relative h-screen flex items-center justify-center overflow-hidden bg-background"
+    >
       {/* Enhanced Three.js Background */}
       <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 6] }}>
-          <ambientLight intensity={0.3} />
-          <pointLight position={[10, 10, 10]} color="#3B82F6" intensity={1} />
-          <pointLight position={[-10, -10, -10]} color="#475569" intensity={0.8} />
-          <AnimatedSphere />
-          <SecondaryOrb />
-          <Environment preset="night" />
-          <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.3} />
-        </Canvas>
+        {isMounted && <ThreeDContent />}
       </div>
 
       {/* Gradient Overlay */}
@@ -78,7 +71,9 @@ export default function Hero() {
       <div className="relative z-20 text-center max-w-4xl mx-auto px-4">
         <div className="mb-6 inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-blue-500/30">
           <Sparkles className="w-4 h-4 text-blue-400 mr-2" />
-          <span className="text-sm font-medium text-blue-300">Professional Digital Solutions</span>
+          <span className="text-sm font-medium text-blue-300">
+            Professional Digital Solutions
+          </span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
@@ -86,8 +81,8 @@ export default function Hero() {
         </h1>
 
         <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-          We create professional digital experiences that drive business growth with cutting-edge technology and
-          strategic design.
+          We create professional digital experiences that drive business growth
+          with cutting-edge technology and strategic design.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -114,5 +109,5 @@ export default function Hero() {
       <div className="absolute bottom-20 right-10 w-16 h-16 bg-slate-500/20 rounded-full opacity-60 animate-bounce" />
       <div className="absolute top-1/2 left-5 w-12 h-12 bg-blue-600/20 rounded-full opacity-60 animate-ping" />
     </section>
-  )
+  );
 }
